@@ -1,5 +1,6 @@
 """Scrape a collection from OpenSea."""
 
+import json
 import os
 
 from absl import app
@@ -30,11 +31,26 @@ def get_collection(collection_name):
     return nfts
 
 
+def save_nft_collection_metadata(nfts):
+    """Save NFT collection metadata to a JSON file."""
+    with open(os.path.join(FLAGS.output_dir, 'metadata.json'), 'w') as json_file:
+        json.dump(nfts, json_file, indent=2)
+    logging.info('Saved metadata.json to %s', os.path.join(FLAGS.output_dir, 'metadata.json'))
+
+
+
 def main(_):
-    nfts = get_collection(FLAGS.collection)
+    if os.path.exists(os.path.join(FLAGS.output_dir, 'metadata.json')):
+        nfts = json.load(open(os.path.join(FLAGS.output_dir, 'metadata.json')))
+    else:
+        nfts = get_collection(FLAGS.collection)
+        save_nft_collection_metadata(nfts)
     os.makedirs(FLAGS.output_dir, exist_ok=True)
     for nft in nfts:
         svg_data = requests.get(nft['image_url']).text
+        if os.path.exists(os.path.join(FLAGS.output_dir, nft['name'] + '.png')):
+            logging.info('Image %s already exists', nft['name'])
+            continue
         with open(os.path.join(FLAGS.output_dir, nft['name'] + '.png'),
                   'wb') as png_file:
             cairosvg.svg2png(bytestring=svg_data, write_to=png_file)
